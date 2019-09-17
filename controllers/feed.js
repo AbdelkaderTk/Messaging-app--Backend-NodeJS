@@ -22,10 +22,9 @@ exports.getPosts = (req, res, next) => {
 exports.createPost = (req, res, next) => {
   const validationErrors = validationResult(req);
   if (!validationErrors.isEmpty()) {
-    return res.status(422).json({
-      message: 'Failed to create post. Invalid input.',
-      errors: validationErrors.array()
-    })
+    const error = new Error('Failed to create post. Invalid input.');
+    error.statusCode = 422
+    throw error;
   };
   const title = req.body.title;
   const content = req.body.content;
@@ -45,5 +44,10 @@ exports.createPost = (req, res, next) => {
         post: createdPost
       });
     })
-    .catch(err => console.log(err))
+    .catch(err => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    })
 };
