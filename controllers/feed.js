@@ -44,14 +44,20 @@ exports.createPost = (req, res, next) => {
   const validationErrors = validationResult(req);
   if (!validationErrors.isEmpty()) {
     const error = new Error('Failed to create post. Invalid input.');
-    error.statusCode = 422
+    error.statusCode = 422;
     throw error;
   };
+  if (!req.file) {
+    const error = new Error('Provide a valid file');
+    error.statusCode = 422;
+    throw error;
+  }
   const title = req.body.title;
+  const imageUrl = req.file.path.replace("\\","/");
   const content = req.body.content;
   const post = new Post({
      title: title,
-     imageUrl: 'images/duck.jpg',
+     imageUrl: imageUrl,
      content: content,
      creator: {
        name: 'Abk'
