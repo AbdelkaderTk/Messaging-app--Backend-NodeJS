@@ -1,6 +1,9 @@
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
 const User = require('../model/user');
+const config = require('../config');
 
 exports.signup = (req, res, next) => {
   const validationErrors = validationResult(req);
@@ -33,5 +36,45 @@ exports.signup = (req, res, next) => {
         err.statusCode = 500;
       };
       next(err);
+    })
+}
+
+exports.postLogin = (req, res, next) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  let loadedUser;
+  User.findOne({email: email})
+    .then(existingUser => {
+      if (!existingUser) {
+        const error = new Error('Invalid email or password');
+        error.statusCode = 401;
+        throw error;
+      };
+      loadedUser = existingUser;
+      return bcrypt.compare(password, existingUser.password)
+    })
+    .then(isEqual => {
+      if (!isEqual) {
+        const error = new Error('Invalid email or password');
+        error.statusCode = 401;
+        throw error;
+      }
+      const token = jwt.sign({
+        email: email,
+        userId: loadedUser._id.toString()
+        },
+        config.JWT_SECRET_KEY,
+        { expiresIn: '1h' })
+      res.status(200).json({
+        message: 'Connected',
+        userId: loadedUser._id.toString(),
+        token: token
+      })
+    })
+    .catch(err => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      };
+      next(err)
     })
 }
