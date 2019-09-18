@@ -4,6 +4,7 @@ const path = require('path');
 const { validationResult } = require('express-validator');
 
 const Post = require('../model/post');
+const User = require('../model/user');
 
 exports.getPosts = (req, res, next) => {
   const page = req.query.page || 1;
@@ -47,20 +48,27 @@ exports.createPost = (req, res, next) => {
   const title = req.body.title;
   const imageUrl = req.file.path.replace("\\","/");
   const content = req.body.content;
+  let creator;
   const post = new Post({
      title: title,
      imageUrl: imageUrl,
      content: content,
-     creator: {
-       name: 'Abk'
-     },
+     creator: req.userId
   })
   post.save()
-    .then(createdPost => {
-      console.log(createdPost);
+    .then(result => {
+      return User.findById(req.userId);
+    })
+    .then(user => {
+      creator = user;
+      user.posts.push(post);
+      return user.save();
+    })
+    .then(result => {
       res.status(201).json({
         message: 'Post created successfully!',
-        post: createdPost
+        post: post,
+        creator: {_id: creator._id, name: creator.name }
       });
     })
     .catch(err => {
@@ -97,7 +105,7 @@ exports.updatePost = (req, res, next) => {
   const postId = req.params.postId;
   const validationErrors = validationResult(req);
   if (!validationErrors.isEmpty()) {
-    const error = new Error('Failed to create post. Invalid input.');
+    const error = new Error('Failed to update post. Invalid input.');
     error.statusCode = 422;
     throw error;
   };
@@ -114,6 +122,11 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (req.userId !== post.creator.toString()) {
+        const error = new Error('Not authorized');
+        error.statusCode = 403;
+        throw error;
+      };
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
       }
@@ -145,11 +158,22 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (req.userId !== post.creator.toString()) {
+        const error = new Error('Not authorized');
+        error.statusCode = 403;
+        throw error;
+      };
       clearImage(post.imageUrl);
       return Post.findByIdAndRemove(postId)
     })
     .then(result => {
-      console.log(result);
+      return User.findById(req.userId);
+    })
+    .then(user => {
+      user.posts.pull(postId);
+      return user.save();
+    })
+    .then(result => {
       res.status(200).json({
         message: 'Post deleted'
       })
