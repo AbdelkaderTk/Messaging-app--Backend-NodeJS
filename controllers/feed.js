@@ -6,11 +6,22 @@ const { validationResult } = require('express-validator');
 const Post = require('../model/post');
 
 exports.getPosts = (req, res, next) => {
+  const page = req.query.page || 1;
+  const perPage = 2;
+  let totalItems;
   Post.find()
+    .countDocuments()
+    .then(count => {
+      totalItems = count;
+      return Post.find()
+        .skip((page - 1) * perPage)
+        .limit(perPage)
+    })
     .then(posts => {
       res.status(200).json({
         message: 'Posts fetched successfully',
-        posts: posts
+        posts: posts,
+        totalItems: totalItems
       })
     })
     .catch(err => {
@@ -116,6 +127,32 @@ exports.updatePost = (req, res, next) => {
         message: "Post updated",
         post: updatedPost
       });
+    })
+    .catch(err => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    })
+}
+
+exports.deletePost = (req, res, next) => {
+  const postId = req.params.postId;
+  Post.findById(postId)
+    .then(post => {
+      if (!post) {
+        const error = new Error('Post not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      clearImage(post.imageUrl);
+      return Post.findByIdAndRemove(postId)
+    })
+    .then(result => {
+      console.log(result);
+      res.status(200).json({
+        message: 'Post deleted'
+      })
     })
     .catch(err => {
       if (!err.statusCode) {
