@@ -78,3 +78,57 @@ exports.postLogin = (req, res, next) => {
       next(err)
     })
 }
+
+exports.getUserStatus = (req, res, next) => {
+  User.findById(req.userId)
+    .then(user => {
+      if (!user) {
+        const error = new Error('User not found');
+        error.status = 404;
+        throw error
+      }
+      res.status(200).json({
+        message: 'Fetch status successfully',
+        status: user.status
+      })
+    })
+    .catch(err => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      };
+      next(err)
+    })
+}
+
+exports.updateUserStatus = (req, res, next) => {
+  const newStatus = req.body.status;
+  const validationErrors = validationResult(req);
+  if (!validationErrors.isEmpty()) {
+    const error = new Error('Failed to update post. Invalid input.');
+    error.statusCode = 422;
+    throw error;
+  };
+  User.findById(req.userId)
+    .then(user => {
+      if (!user) {
+        const error = new Error('User not found');
+        error.status = 404;
+        throw error
+      }
+      console.log(user);
+      user.status = newStatus;
+      return user.save();
+    })
+    .then(user => {
+      res.status(200).json({
+        message: 'Status updated successfully',
+        status: user.status
+      })
+    })
+    .catch(err => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      };
+      next(err)
+    })
+}
