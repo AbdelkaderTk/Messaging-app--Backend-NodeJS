@@ -104,4 +104,26 @@ module.exports = {
       updatedAt: createdPost.updatedAt.toISOString()
     }
   },
+  posts: async function(args, req) {
+    if (!req.isAuth) {
+      const error = new Error({message: 'Invalid user'});
+      error.statusCode = 401;
+      throw error
+    }
+    const totalPosts = await Post.find().countDocuments();
+    const posts = await Post.find()
+      .sort({createdAt: -1})
+      .populate('creator');
+    return {
+      posts: posts.map(post => {
+        return {
+          ...post._doc,
+          _id: post._id.toString(),
+          createdAt: post.createdAt.toISOString(),
+          updatedAt: post.updatedAt.toISOString()
+        }
+      }),
+      totalPosts: totalPosts
+    }
+  }
 }
