@@ -64,7 +64,7 @@ module.exports = {
       const error = new Error({message: 'Invalid user'});
       error.statusCode = 401;
       throw error
-    }
+    };
     const errors = [];
     if (
       validator.isEmpty(postInput.title)
@@ -104,15 +104,21 @@ module.exports = {
       updatedAt: createdPost.updatedAt.toISOString()
     }
   },
-  posts: async function(args, req) {
+  posts: async function({ page }, req) {
     if (!req.isAuth) {
       const error = new Error({message: 'Invalid user'});
       error.statusCode = 401;
       throw error
     }
+    if (!page) {
+      page = 1;
+    }
+    const perPage = 2;
     const totalPosts = await Post.find().countDocuments();
     const posts = await Post.find()
       .sort({createdAt: -1})
+      .skip((page - 1) * perPage)
+      .limit(perPage)
       .populate('creator');
     return {
       posts: posts.map(post => {
